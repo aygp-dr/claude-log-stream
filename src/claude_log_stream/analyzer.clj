@@ -258,7 +258,9 @@
     (printf "  Total Messages: %d\n" (:total-messages summary))
     (printf "  Valid Messages: %d (%.1f%%)\n"
             (:valid-messages summary)
-            (* 100.0 (/ (:valid-messages summary) (:total-messages summary))))
+            (if (pos? (:total-messages summary))
+              (* 100.0 (/ (:valid-messages summary) (:total-messages summary)))
+              0.0))
     (printf "  Sessions: %d\n" (:unique-sessions summary))
     (printf "  Conversations: %d\n" (:unique-conversations summary))
     (println))

@@ -107,7 +107,9 @@
     [(colorize "SUMMARY" :cyan)
      (format "Messages: %s (%.1f%% valid)"
              (format-number (:total-messages summary))
-             (* 100.0 (/ (:valid-messages summary) (:total-messages summary))))
+             (if (pos? (:total-messages summary))
+               (* 100.0 (/ (:valid-messages summary) (:total-messages summary)))
+               0.0))
      (format "Sessions: %s | Conversations: %s"
              (format-number (:unique-sessions summary))
              (format-number (:unique-conversations summary)))

@@ -33,14 +33,8 @@
     `claude-log-stream.core/exit     ; System/exit
     `claude-log-stream.core/-main})  ; IO, System/exit
 
-;; Real bugs found by stest/check; each is fixed in its own fix: commit.
-;; TODO(spec): (render-summary-panel (analyze-logs [])) throws
-;;   ArithmeticException "Divide by zero": the valid-% is (/ valid total).
-(def ^:private known-bugs
-  #{`dashboard/render-summary-panel})
-
 (defn- checkable []
-  (remove (into side-effecting known-bugs) (stest/enumerate-namespace api-nses)))
+  (remove side-effecting (stest/enumerate-namespace api-nses)))
 
 (deftest fdefs-hold-under-generative-testing
   (let [results (stest/check (checkable) check-opts)]
