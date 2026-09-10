@@ -192,8 +192,8 @@
         token-counts (keep :token-count valid-messages)]
     {:total-tokens (apply + token-counts)
      :average-tokens (if (seq token-counts)
-                       (/ (apply + token-counts) (count token-counts))
-                       0)
+                       (double (/ (apply + token-counts) (count token-counts)))
+                       0.0)
      :max-tokens (if (seq token-counts) (apply max token-counts) 0)
      :min-tokens (if (seq token-counts) (apply min token-counts) 0)
      :message-count (count valid-messages)}))

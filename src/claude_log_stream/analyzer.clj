@@ -61,11 +61,11 @@
         user-messages (count (filter #(= (:role %) "user") session-messages))]
     {:duration-minutes (when duration (.toMinutes duration))
      :tools-per-minute (when (and duration (> (.toMinutes duration) 0))
-                         (/ tool-usages (.toMinutes duration)))
+                         (double (/ tool-usages (.toMinutes duration))))
      :responses-per-minute (when (and duration (> (.toMinutes duration) 0))
-                             (/ assistant-responses (.toMinutes duration)))
+                             (double (/ assistant-responses (.toMinutes duration))))
      :interaction-ratio (when (> user-messages 0)
-                          (/ assistant-responses user-messages))
+                          (double (/ assistant-responses user-messages)))
      :tool-usage-count tool-usages
      :total-interactions (+ user-messages assistant-responses)}))
 
@@ -76,13 +76,13 @@
         tool-stats (group-by :tool-name tool-messages)]
     (map (fn [[tool-name usages]]
            (let [sessions (distinct (map :session-id usages))
-                 success-rate (/ (count (filter :tool-output usages))
-                               (count usages))]
+                 success-rate (double (/ (count (filter :tool-output usages))
+                                         (count usages)))]
              {:tool-name tool-name
               :total-usage (count usages)
               :unique-sessions (count sessions)
               :success-rate success-rate
-              :average-per-session (/ (count usages) (count sessions))
+              :average-per-session (double (/ (count usages) (count sessions)))
               :first-used (first (sort (map :timestamp usages)))
               :last-used (last (sort (map :timestamp usages)))}))
          tool-stats)))
