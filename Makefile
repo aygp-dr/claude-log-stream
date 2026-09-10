@@ -4,7 +4,7 @@ PROJECT_ROOT := $(shell pwd)
 EMACS_CONFIG := $(PROJECT_NAME).el
 TMUX_SESSION := $(PROJECT_NAME)
 
-.PHONY: help test coverage lint clean install run repl uberjar docker analyze-sample analyze-project analyze-claude-logs find-claude-logs demo analyze-project-verbose analyze-recent emacs-init tmux-dev tmux-stop
+.PHONY: help test coverage lint fmt check clean install run repl uberjar docker analyze-sample analyze-project analyze-claude-logs find-claude-logs demo analyze-project-verbose analyze-recent emacs-init tmux-dev tmux-stop
 
 # Default target
 help:
@@ -13,6 +13,8 @@ help:
 	@echo "  test            - Run unit tests"
 	@echo "  coverage        - Run tests with coverage report"
 	@echo "  lint            - Run code linting (clj-kondo)"
+	@echo "  fmt             - Check formatting (cljfmt; bb fmt:fix to repair)"
+	@echo "  check           - lint + fmt + test (bb check, what CI runs)"
 	@echo "  clean           - Clean build artifacts"
 	@echo "  run             - Run the application"
 	@echo "  repl            - Start REPL"
@@ -35,16 +37,23 @@ install:
 
 # Run tests
 test:
-	clojure -M:test -m kaocha.runner
+	bb test
 
-# Run tests with coverage
+# Run tests with coverage (the :test alias already runs kaocha.runner)
 coverage:
-	clojure -M:test -m kaocha.runner --plugin cloverage
+	clojure -M:test --plugin cloverage
 
-# Lint code (requires clj-kondo)
+# Lint code (clj-kondo via the :lint alias)
 lint:
-	@command -v clj-kondo >/dev/null 2>&1 || (echo \"clj-kondo not found. Install with: brew install clj-kondo\" && exit 1)
-	clj-kondo --lint src test
+	bb lint
+
+# Check formatting
+fmt:
+	bb fmt
+
+# lint + fmt + test
+check:
+	bb check
 
 # Clean build artifacts
 clean:
@@ -76,7 +85,7 @@ ci: install lint coverage
 
 # Demo and analysis targets
 demo:
-	clojure -M demo.clj
+	clojure -M script/demo.clj
 
 # Analyze included sample data
 analyze-sample:
@@ -105,16 +114,16 @@ analyze-project:
 		LATEST_LOG=$$(ls -t "$$CLAUDE_LOG_DIR"/*.jsonl 2>/dev/null | head -1); \
 		if [ -n "$$LATEST_LOG" ]; then \
 			echo "Found project Claude log: $$LATEST_LOG"; \
-			clojure -M analyze_real_logs.clj "$$LATEST_LOG"; \
+			clojure -M script/analyze_real_logs.clj "$$LATEST_LOG"; \
 		else \
 			echo "No .jsonl files found in $$CLAUDE_LOG_DIR"; \
 			echo "Falling back to sample data..."; \
-			clojure -M simple_test.clj test/resources/sample.jsonl; \
+			clojure -M script/simple_test.clj test/resources/sample.jsonl; \
 		fi; \
 	else \
 		echo "No Claude logs found for project at $$CLAUDE_LOG_DIR"; \
 		echo "Falling back to sample data..."; \
-		clojure -M simple_test.clj test/resources/sample.jsonl; \
+		clojure -M script/simple_test.clj test/resources/sample.jsonl; \
 	fi
 
 # Analyze system Claude logs with dashboard
@@ -145,7 +154,7 @@ analyze-project-verbose:
 		LATEST_LOG=$$(ls -t "$$CLAUDE_LOG_DIR"/*.jsonl 2>/dev/null | head -1); \
 		if [ -n "$$LATEST_LOG" ]; then \
 			echo "=== Analysis of Latest Session ==="; \
-			clojure -M analyze_real_logs.clj "$$LATEST_LOG"; \
+			clojure -M script/analyze_real_logs.clj "$$LATEST_LOG"; \
 			echo ""; \
 			echo "=== Session Statistics ==="; \
 			echo "Log file: $$LATEST_LOG"; \
@@ -162,7 +171,7 @@ analyze-recent:
 	@LATEST_LOG=$$(find /home/jwalsh/.claude/projects -name "*.jsonl" -exec ls -t {} + 2>/dev/null | head -1); \
 	if [ -n "$$LATEST_LOG" ]; then \
 		echo "Most recent session: $$LATEST_LOG"; \
-		clojure -M analyze_real_logs.clj "$$LATEST_LOG"; \
+		clojure -M script/analyze_real_logs.clj "$$LATEST_LOG"; \
 	else \
 		echo "No Claude log files found"; \
 	fi

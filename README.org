@@ -129,24 +129,46 @@ clojure -M:run -f logs.jsonl -o ./analysis-output
 
 * Development
 
+This repo follows the aygp-dr Clojure standard: =deps.edn= is the canonical
+manifest and =bb.edn= provides the tasks. The Makefile targets delegate to them.
+
+| Task                    | What it does                                 |
+|-------------------------+----------------------------------------------|
+| =bb test=               | kaocha test suite (=clojure -M:test=)        |
+| =bb lint=               | clj-kondo (fails on errors)                  |
+| =bb fmt= / =bb fmt:fix= | cljfmt check / fix                           |
+| =bb check=              | lint + fmt + test (CI runs this)             |
+
 ** Running Tests
 
 #+BEGIN_SRC bash
 # Run all tests
-make test
+bb test          # or: make test
 
 # Run with coverage
 make coverage
 
 # Run specific test
-clojure -M:test -m kaocha.runner --focus claude-log-stream.parser-test
+clojure -M:test --focus claude-log-stream.parser-test
 #+END_SRC
+
+** Specs
+
+The JSONL message schemas live in =claude-log-stream.parser=. Everything built
+on them (parsed messages, analysis results, CLI shapes) is in
+[[file:src/claude_log_stream/specs.clj][specs.clj]], and each public fn in
+parser, analyzer, dashboard and core has an =s/fdef= right after its =defn=
+(see the [[https://clojure.org/guides/spec][clojure.spec guide]]).
+[[file:test/claude_log_stream/specs_test.clj][specs_test.clj]] runs
+=stest/check= over every pure fn. The unit tests run with instrumentation on,
+and =clj -M:dev= instruments at the REPL.
 
 ** Code Quality
 
 #+BEGIN_SRC bash
-# Lint code
-make lint
+bb lint          # clj-kondo
+bb fmt           # cljfmt (bb fmt:fix to repair)
+bb check         # lint + fmt + test
 
 # Full development workflow
 make dev
@@ -163,7 +185,7 @@ make repl
 (require '[claude-log-stream.analyzer :as analyzer])
 
 # Parse sample data
-(def data (parser/parse-jsonl-file "test-data/sample.jsonl"))
+(def data (parser/parse-jsonl-file "test/resources/sample.jsonl"))
 
 # Run analysis
 (def analysis (analyzer/analyze-logs data))
