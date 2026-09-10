@@ -182,8 +182,8 @@
               {:tool-name tool-name
                :usage-count (count usages)
                :sessions (distinct (map :session-id usages))
-               :first-used (apply min (map :timestamp usages))
-               :last-used (apply max (map :timestamp usages))}))))
+               :first-used (first (sort (map :timestamp usages)))
+               :last-used (last (sort (map :timestamp usages)))}))))
 
 (defn calculate-token-stats
   "Calculate token usage statistics."

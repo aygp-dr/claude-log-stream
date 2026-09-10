@@ -13,8 +13,8 @@
   [session-messages]
   (when (seq session-messages)
     (let [timestamps (keep :timestamp session-messages)
-          start (apply min timestamps)
-          end (apply max timestamps)]
+          start (first (sort timestamps))
+          end (last (sort timestamps))]
       (when (and start end)
         (Duration/between start end)))))
 
@@ -83,8 +83,8 @@
               :unique-sessions (count sessions)
               :success-rate success-rate
               :average-per-session (/ (count usages) (count sessions))
-              :first-used (apply min (map :timestamp usages))
-              :last-used (apply max (map :timestamp usages))}))
+              :first-used (first (sort (map :timestamp usages)))
+              :last-used (last (sort (map :timestamp usages)))}))
          tool-stats)))
 
 (defn cost-optimization-insights
@@ -179,8 +179,8 @@
      
      :costs (cost-optimization-insights valid-messages)
      
-     :temporal {:first-message (apply min (map :timestamp valid-messages))
-                :last-message (apply max (map :timestamp valid-messages))
+     :temporal {:first-message (first (sort (map :timestamp valid-messages)))
+                :last-message (last (sort (map :timestamp valid-messages)))
                 :time-distribution (frequencies (map #(time-format/unparse 
                                                       (time-format/formatter "yyyy-MM-dd-HH")
                                                       (time-coerce/from-long 
