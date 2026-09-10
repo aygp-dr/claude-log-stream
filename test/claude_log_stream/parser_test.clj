@@ -63,7 +63,7 @@
           result (parser/parse-timestamp timestamp)]
       (is (instance? Instant result))
       (is (= (.toString result) timestamp))))
-  
+
   (testing "handles invalid timestamp gracefully"
     (let [result (parser/parse-timestamp "invalid-timestamp")]
       (is (nil? result)))))
@@ -71,19 +71,19 @@
 (deftest test-infer-message-type
   (testing "infers user message type"
     (is (= :user-message (parser/infer-message-type {:role "user"}))))
-  
+
   (testing "infers assistant message type"
     (is (= :assistant-message (parser/infer-message-type {:role "assistant"}))))
-  
+
   (testing "infers system message type"
     (is (= :system-message (parser/infer-message-type {:role "system"}))))
-  
+
   (testing "infers tool usage type"
     (is (= :tool-usage (parser/infer-message-type {:tool-name "Read"}))))
-  
+
   (testing "infers summary message type"
     (is (= :summary-message (parser/infer-message-type {:conversation-id "conv-123"}))))
-  
+
   (testing "returns unknown for unrecognized types"
     (is (= :unknown (parser/infer-message-type {:random-field "value"})))))
 
@@ -92,27 +92,27 @@
     (let [result (parser/validate-message sample-user-message)]
       (is (:valid? result))
       (is (= (:message-type result) :user-message))))
-  
+
   (testing "validates assistant message successfully"
     (let [result (parser/validate-message sample-assistant-message)]
       (is (:valid? result))
       (is (= (:message-type result) :assistant-message))))
-  
+
   (testing "validates tool usage successfully"
     (let [result (parser/validate-message sample-tool-usage)]
       (is (:valid? result))
       (is (= (:message-type result) :tool-usage))))
-  
+
   (testing "validates system message successfully"
     (let [result (parser/validate-message sample-system-message)]
       (is (:valid? result))
       (is (= (:message-type result) :system-message))))
-  
+
   (testing "validates summary message successfully"
     (let [result (parser/validate-message sample-summary-message)]
       (is (:valid? result))
       (is (= (:message-type result) :summary-message))))
-  
+
   (testing "marks invalid message as invalid"
     (let [invalid-message {:role "user"} ;; missing required fields
           result (parser/validate-message invalid-message)]
@@ -126,18 +126,18 @@
       (is (:valid? result))
       (is (= (:line-number result) 1))
       (is (= (:message-type result) :user-message))))
-  
+
   (testing "handles invalid JSON gracefully"
     (let [invalid-line "{ invalid json"
           result (parser/parse-jsonl-line invalid-line 1)]
       (is (not (:valid? result)))
       (is (= (:line-number result) 1))
       (is (contains? result :error))))
-  
+
   (testing "skips blank lines"
     (let [result (parser/parse-jsonl-line "" 1)]
       (is (nil? result))))
-  
+
   (testing "skips whitespace-only lines"
     (let [result (parser/parse-jsonl-line "   " 1)]
       (is (nil? result)))))
@@ -145,8 +145,8 @@
 (deftest test-group-by-message-type
   (testing "groups messages by type correctly"
     (let [messages [(assoc sample-user-message :valid? true :message-type :user-message)
-                   (assoc sample-assistant-message :valid? true :message-type :assistant-message)
-                   (assoc sample-tool-usage :valid? true :message-type :tool-usage)]
+                    (assoc sample-assistant-message :valid? true :message-type :assistant-message)
+                    (assoc sample-tool-usage :valid? true :message-type :tool-usage)]
           grouped (parser/group-by-message-type messages)]
       (is (= 1 (count (:user-message grouped))))
       (is (= 1 (count (:assistant-message grouped))))
@@ -155,8 +155,8 @@
 (deftest test-group-by-session
   (testing "groups messages by session ID"
     (let [messages [(assoc sample-user-message :valid? true :session-id "session-1")
-                   (assoc sample-assistant-message :valid? true :session-id "session-1")
-                   (assoc sample-tool-usage :valid? true :session-id "session-2")]
+                    (assoc sample-assistant-message :valid? true :session-id "session-1")
+                    (assoc sample-tool-usage :valid? true :session-id "session-2")]
           grouped (parser/group-by-session messages)]
       (is (= 2 (count (get grouped "session-1"))))
       (is (= 1 (count (get grouped "session-2")))))))
@@ -164,8 +164,8 @@
 (deftest test-extract-tool-usage
   (testing "extracts tool usage patterns"
     (let [messages [(assoc sample-tool-usage :valid? true :message-type :tool-usage :tool-name "Read")
-                   (assoc sample-tool-usage :valid? true :message-type :tool-usage :tool-name "Write")
-                   (assoc sample-tool-usage :valid? true :message-type :tool-usage :tool-name "Read")]
+                    (assoc sample-tool-usage :valid? true :message-type :tool-usage :tool-name "Write")
+                    (assoc sample-tool-usage :valid? true :message-type :tool-usage :tool-name "Read")]
           usage (parser/extract-tool-usage messages)]
       (is (= 2 (count usage)))
       (let [read-usage (first (filter #(= (:tool-name %) "Read") usage))]
@@ -174,18 +174,18 @@
 (deftest test-calculate-token-stats
   (testing "calculates token statistics correctly"
     (let [messages [(assoc sample-user-message :valid? true :token-count 10)
-                   (assoc sample-assistant-message :valid? true :token-count 20)
-                   (assoc sample-tool-usage :valid? true :token-count 30)]
+                    (assoc sample-assistant-message :valid? true :token-count 20)
+                    (assoc sample-tool-usage :valid? true :token-count 30)]
           stats (parser/calculate-token-stats messages)]
       (is (= 60 (:total-tokens stats)))
       (is (= 20.0 (:average-tokens stats)))
       (is (= 30 (:max-tokens stats)))
       (is (= 10 (:min-tokens stats)))
       (is (= 3 (:message-count stats)))))
-  
+
   (testing "handles messages without token counts"
     (let [messages [(dissoc sample-user-message :token-count)
-                   (assoc sample-assistant-message :valid? true :token-count 20)]
+                    (assoc sample-assistant-message :valid? true :token-count 20)]
           stats (parser/calculate-token-stats messages)]
       (is (= 20 (:total-tokens stats)))
       (is (= 20.0 (:average-tokens stats)))
@@ -194,7 +194,7 @@
 (deftest test-calculate-cost-stats
   (testing "calculates cost statistics"
     (let [messages [(assoc sample-assistant-message :valid? true :cost-usd 0.05)
-                   (assoc sample-assistant-message :valid? true :cost-usd 0.03)]
+                    (assoc sample-assistant-message :valid? true :cost-usd 0.03)]
           stats (parser/calculate-cost-stats messages)]
       (is (= 0.08 (:total-cost stats)))
       (is (= 0.04 (:average-cost stats))))))

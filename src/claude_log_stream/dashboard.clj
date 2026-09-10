@@ -34,8 +34,8 @@
   (let [title-len (count title)
         border-top (str "┌" (str/join (repeat (- width 2) "─")) "┐")
         border-bottom (str "└" (str/join (repeat (- width 2) "─")) "┘")
-        title-line (str "│ " (colorize title :bold) 
-                       (str/join (repeat (- width 4 title-len) " ")) " │")]
+        title-line (str "│ " (colorize title :bold)
+                        (str/join (repeat (- width 4 title-len) " ")) " │")]
     (println border-top)
     (println title-line)
     (println (str "├" (str/join (repeat (- width 2) "─")) "┤"))
@@ -54,7 +54,7 @@
 
 (defn format-timestamp [instant]
   (when instant
-    (.format (DateTimeFormatter/ofPattern "HH:mm:ss") 
+    (.format (DateTimeFormatter/ofPattern "HH:mm:ss")
              (.atZone instant (java.time.ZoneId/systemDefault)))))
 
 (defn format-number [n]
@@ -69,7 +69,7 @@
         tokens (:tokens analysis)
         costs (:costs analysis)]
     [(colorize "SUMMARY" :cyan)
-     (format "Messages: %s (%.1f%% valid)" 
+     (format "Messages: %s (%.1f%% valid)"
              (format-number (:total-messages summary))
              (* 100.0 (/ (:valid-messages summary) (:total-messages summary))))
      (format "Sessions: %s | Conversations: %s"
@@ -106,7 +106,7 @@
 (defn render-real-time-stats [analysis last-update]
   [(colorize "REAL-TIME" :magenta)
    (format "Last Update: %s" (format-timestamp last-update))
-   (format "Processing Rate: %s msgs/min" 
+   (format "Processing Rate: %s msgs/min"
            (format-number (get-in analysis [:summary :processing-rate] 0)))
    ""
    (colorize "RECENT ACTIVITY" :cyan)
@@ -117,45 +117,45 @@
 (defn render-dashboard [analysis]
   (clear-screen)
   (move-cursor 1 1)
-  
+
   (println (colorize "Claude Log Stream - Live Dashboard" :bold))
   (println (str "Updated: " (format-timestamp (Instant/now))))
   (println (str/join (repeat *dashboard-width* "═")))
   (println)
-  
+
   ;; Top row - Summary and Tools
   (let [panel-width (quot *dashboard-width* 2)]
-    (println (colorize "Summary" :bold) (str/join (repeat (- panel-width 20) " ")) 
+    (println (colorize "Summary" :bold) (str/join (repeat (- panel-width 20) " "))
              (colorize "Top Tools" :bold))
-    
+
     (let [summary-lines (render-summary-panel analysis)
           tools-lines (render-tools-panel analysis)
           max-lines (max (count summary-lines) (count tools-lines))]
       (dotimes [i max-lines]
         (let [summary-line (get summary-lines i "")
               tools-line (get tools-lines i "")
-              summary-padded (str summary-line 
-                                (str/join (repeat (max 0 (- panel-width (count summary-line) 2)) " ")))]
+              summary-padded (str summary-line
+                                  (str/join (repeat (max 0 (- panel-width (count summary-line) 2)) " ")))]
           (println summary-padded " │ " tools-line))))
-    
+
     (println)
     (println (str/join (repeat *dashboard-width* "─")))
     (println)
-    
+
     ;; Bottom row - Sessions and Real-time
     (println (colorize "Active Sessions" :bold) (str/join (repeat (- panel-width 25) " "))
              (colorize "Real-time Stats" :bold))
-    
+
     (let [sessions-lines (render-sessions-panel analysis)
           realtime-lines (render-real-time-stats analysis (Instant/now))
           max-lines (max (count sessions-lines) (count realtime-lines))]
       (dotimes [i max-lines]
         (let [sessions-line (get sessions-lines i "")
               realtime-line (get realtime-lines i "")
-              sessions-padded (str sessions-line 
-                                 (str/join (repeat (max 0 (- panel-width (count sessions-line) 2)) " ")))]
+              sessions-padded (str sessions-line
+                                   (str/join (repeat (max 0 (- panel-width (count sessions-line) 2)) " ")))]
           (println sessions-padded " │ " realtime-line)))))
-  
+
   (println)
   (println (str/join (repeat *dashboard-width* "═")))
   (println (colorize "Press 'q' to quit, 'r' to refresh" :cyan)))
@@ -174,37 +174,37 @@
   (let [refresh-chan (chan)
         input-chan (chan)
         stop-chan (chan)]
-    
+
     ;; Initial render
     (render-dashboard analysis)
-    
+
     ;; Input handler
     (handle-input input-chan stop-chan)
-    
+
     ;; Auto-refresh every 5 seconds
     (go-loop []
       (async/alt!
         (timeout 5000) (do (>! refresh-chan :auto-refresh)
-                          (recur))
+                           (recur))
         stop-chan :quit))
-    
+
     ;; Main loop
     (go-loop [current-analysis analysis]
       (async/alt!
         refresh-chan ([_]
-                     (render-dashboard current-analysis)
-                     (recur current-analysis))
-        
+                      (render-dashboard current-analysis)
+                      (recur current-analysis))
+
         input-chan ([cmd]
-                   (case cmd
-                     :refresh (do (render-dashboard current-analysis)
-                                 (recur current-analysis))
-                     :help (do (println "\nHelp: q=quit, r=refresh, h=help")
-                              (Thread/sleep 2000)
-                              (render-dashboard current-analysis)
-                              (recur current-analysis))
-                     (recur current-analysis)))
-        
+                    (case cmd
+                      :refresh (do (render-dashboard current-analysis)
+                                   (recur current-analysis))
+                      :help (do (println "\nHelp: q=quit, r=refresh, h=help")
+                                (Thread/sleep 2000)
+                                (render-dashboard current-analysis)
+                                (recur current-analysis))
+                      (recur current-analysis)))
+
         stop-chan :quit))
-    
+
     (println "\nDashboard closed.")))

@@ -83,7 +83,7 @@
                   "assistant" :assistant-message
                   "system" :system-message
                   :unknown)
-    (and (:conversation-id msg) 
+    (and (:conversation-id msg)
          (not (:message-id msg))) :summary-message
     :else :unknown))
 
@@ -136,14 +136,14 @@
                                  (parse-jsonl-line line (inc idx)))
                                lines)
           parsed-messages (doall (remove nil? results))]
-      
+
       (log/info "Parsed" (count parsed-messages) "messages")
       (let [valid-count (count (filter :valid? parsed-messages))
             invalid-count (- (count parsed-messages) valid-count)]
         (log/info "Valid messages:" valid-count)
         (when (> invalid-count 0)
           (log/warn "Invalid messages:" invalid-count)))
-      
+
       parsed-messages)))
 
 (defn parse-jsonl-stream
@@ -206,7 +206,7 @@
      :average-cost (if (seq costs)
                      (/ (apply + costs) (count costs))
                      0)
-     :cost-by-session (group-by :session-id 
+     :cost-by-session (group-by :session-id
                                 (filter :cost-usd (filter :valid? messages)))}))
 
 (comment

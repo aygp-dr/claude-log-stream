@@ -60,7 +60,7 @@
       (do
         (when (:verbose options)
           (log/info "Starting Claude Log Stream with options:" options))
-        
+
         (case action
           :analyze
           (do

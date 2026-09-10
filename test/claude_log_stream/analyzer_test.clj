@@ -34,11 +34,11 @@
     (let [duration (analyzer/session-duration sample-session-messages)]
       (is (instance? Duration duration))
       (is (= 5 (.toMinutes duration)))))
-  
+
   (testing "handles empty session"
     (let [duration (analyzer/session-duration [])]
       (is (nil? duration))))
-  
+
   (testing "handles single message"
     (let [single-message [(first sample-session-messages)]
           duration (analyzer/session-duration single-message)]
@@ -69,7 +69,7 @@
 (deftest test-cluster-conversations
   (testing "clusters conversations by similarity"
     (let [conversations {"conv-1" sample-session-messages
-                        "conv-2" (take 2 sample-session-messages)}
+                         "conv-2" (take 2 sample-session-messages)}
           clusters (analyzer/cluster-conversations conversations)]
       (is (map? clusters))
       (is (every? vector? (vals clusters))))))
@@ -77,20 +77,20 @@
 (deftest test-tool-effectiveness-analysis
   (testing "analyzes tool effectiveness"
     (let [tool-messages [{:message-type :tool-usage
-                         :tool-name "Read"
-                         :session-id "session-1"
-                         :timestamp (Instant/now)
-                         :tool-output "success"}
-                        {:message-type :tool-usage
-                         :tool-name "Read"
-                         :session-id "session-2"
-                         :timestamp (Instant/now)
-                         :tool-output nil}
-                        {:message-type :tool-usage
-                         :tool-name "Write"
-                         :session-id "session-1"
-                         :timestamp (Instant/now)
-                         :tool-output "success"}]
+                          :tool-name "Read"
+                          :session-id "session-1"
+                          :timestamp (Instant/now)
+                          :tool-output "success"}
+                         {:message-type :tool-usage
+                          :tool-name "Read"
+                          :session-id "session-2"
+                          :timestamp (Instant/now)
+                          :tool-output nil}
+                         {:message-type :tool-usage
+                          :tool-name "Write"
+                          :session-id "session-1"
+                          :timestamp (Instant/now)
+                          :tool-output "success"}]
           analysis (analyzer/tool-effectiveness-analysis tool-messages)]
       (is (= 2 (count analysis)))
       (let [read-analysis (first (filter #(= "Read" (:tool-name %)) analysis))]
@@ -101,8 +101,8 @@
 (deftest test-cost-optimization-insights
   (testing "generates cost optimization insights"
     (let [messages [{:cost-usd 0.05 :model "claude-3-opus" :session-id "session-1"}
-                   {:cost-usd 0.03 :model "claude-3-opus" :session-id "session-1"}
-                   {:cost-usd 0.10 :model "claude-3-sonnet" :session-id "session-2"}]
+                    {:cost-usd 0.03 :model "claude-3-opus" :session-id "session-1"}
+                    {:cost-usd 0.10 :model "claude-3-sonnet" :session-id "session-2"}]
           insights (analyzer/cost-optimization-insights messages)]
       (is (= 0.18 (:total-cost insights)))
       (is (= 2 (count (:cost-by-model insights))))
@@ -119,12 +119,12 @@
       (is (contains? analysis :tokens))
       (is (contains? analysis :costs))
       (is (contains? analysis :temporal))
-      
+
       ;; Check summary stats
       (is (= 4 (get-in analysis [:summary :total-messages])))
       (is (= 4 (get-in analysis [:summary :valid-messages])))
       (is (= 1 (get-in analysis [:summary :unique-sessions])))
-      
+
       ;; Check message type distribution
       (let [message-types (get-in analysis [:summary :message-types])]
         (is (= 1 (:user-message message-types)))
