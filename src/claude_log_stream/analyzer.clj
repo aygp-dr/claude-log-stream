@@ -101,9 +101,13 @@
                             :average-cost-per-message (/ (apply + (map :cost-usd msgs))
                                                         (count msgs))})
                         cost-by-model)
-     :expensive-sessions (take 10 (sort-by (fn [[_ msgs]]
-                                            (- (apply + (map :cost-usd msgs))))
-                                          cost-by-session))
+     :expensive-sessions (->> cost-by-session
+                              (map (fn [[session-id msgs]]
+                                     {:session-id session-id
+                                      :cost (apply + (map :cost-usd msgs))
+                                      :message-count (count msgs)}))
+                              (sort-by :cost >)
+                              (take 10))
      :recommendations (let [avg-cost (if (seq costly-messages)
                                        (/ (apply + (map :cost-usd costly-messages))
                                           (count costly-messages))
