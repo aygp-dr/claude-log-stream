@@ -194,36 +194,36 @@
   (println)
   
   (let [summary (:summary analysis)]
-    (println \"📊 Summary:\")
-    (printf \"  Total Messages: %d\\n\" (:total-messages summary))
-    (printf \"  Valid Messages: %d (%.1f%%)\\n\" 
+    (println "📊 Summary:")
+    (printf "  Total Messages: %d\n" (:total-messages summary))
+    (printf "  Valid Messages: %d (%.1f%%)\n" 
             (:valid-messages summary)
             (* 100.0 (/ (:valid-messages summary) (:total-messages summary))))
-    (printf \"  Sessions: %d\\n\" (:unique-sessions summary))
-    (printf \"  Conversations: %d\\n\" (:unique-conversations summary))
+    (printf "  Sessions: %d\n" (:unique-sessions summary))
+    (printf "  Conversations: %d\n" (:unique-conversations summary))
     (println))
   
   (let [tokens (:tokens analysis)]
-    (println \"💬 Token Usage:\")
-    (printf \"  Total Tokens: %d\\n\" (:total-tokens tokens))
-    (printf \"  Average per Message: %.1f\\n\" (:average-tokens tokens))
-    (printf \"  Max Tokens: %d\\n\" (:max-tokens tokens))
+    (println "💬 Token Usage:")
+    (printf "  Total Tokens: %d\n" (:total-tokens tokens))
+    (printf "  Average per Message: %.1f\n" (:average-tokens tokens))
+    (printf "  Max Tokens: %d\n" (:max-tokens tokens))
     (println))
   
   (let [costs (:costs analysis)]
     (when (> (:total-cost costs) 0)
-      (println \"💰 Cost Analysis:\")
-      (printf \"  Total Cost: $%.2f\\n\" (:total-cost costs))
-      (println \"  By Model:\")
+      (println "💰 Cost Analysis:")
+      (printf "  Total Cost: $%.2f\n" (:total-cost costs))
+      (println "  By Model:")
       (doseq [{:keys [model cost message-count]} (:cost-by-model costs)]
-        (printf \"    %s: $%.2f (%d messages)\\n\" model cost message-count))
+        (printf "    %s: $%.2f (%d messages)\n" model cost message-count))
       (println)))
   
   (let [tools (:tools analysis)]
-    (println \"🔧 Tool Usage:\")
-    (printf \"  Unique Tools: %d\\n\" (count (:effectiveness tools)))
+    (println "🔧 Tool Usage:")
+    (printf "  Unique Tools: %d\n" (count (:effectiveness tools)))
     (doseq [{:keys [tool-name total-usage unique-sessions success-rate]} 
             (take 10 (sort-by :total-usage > (:effectiveness tools)))]
-      (printf \"    %s: %d uses across %d sessions (%.1f%% success)\\n\" 
+      (printf "    %s: %d uses across %d sessions (%.1f%% success)\n" 
               tool-name total-usage unique-sessions (* 100.0 success-rate)))
     (println)))
