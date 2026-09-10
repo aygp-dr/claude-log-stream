@@ -6,7 +6,8 @@
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [jsonista.core :as j]
-            [camel-snake-kebab.core :as csk])
+            [camel-snake-kebab.core :as csk]
+            [claude-log-stream.specs :as specs])
   (:import [java.time Instant]
            [java.io BufferedReader]))
 
@@ -64,6 +65,13 @@
                {}
                m)))
 
+(s/fdef kebab-case-keys
+  :args (s/cat :m (s/nilable ::specs/json-object))
+  :ret (s/nilable (s/map-of keyword? any?))
+  :fn (fn [{{:keys [m]} :args ret :ret}]
+        (and (<= (count ret) (count m))
+             (every? #(= % (csk/->kebab-case-keyword %)) (keys ret)))))
+
 (defn parse-timestamp
   "Parse ISO timestamp string to Instant."
   [timestamp-str]
@@ -72,6 +80,10 @@
     (catch Exception e
       (log/warn "Failed to parse timestamp:" timestamp-str)
       nil)))
+
+(s/fdef parse-timestamp
+  :args (s/cat :timestamp-str (s/nilable ::specs/iso-timestamp))
+  :ret (s/nilable ::specs/instant))
 
 (defn infer-message-type
   "Infer message type from message content."
@@ -86,6 +98,12 @@
     (and (:conversation-id msg)
          (not (:message-id msg))) :summary-message
     :else :unknown))
+
+(s/fdef infer-message-type
+  :args (s/cat :msg ::specs/raw-message)
+  :ret ::specs/message-type
+  :fn (fn [{{:keys [msg]} :args ret :ret}]
+        (= (= :tool-usage ret) (boolean (:tool-name msg)))))
 
 (defn validate-message
   "Validate message against appropriate schema."
@@ -108,6 +126,15 @@
         (log/warn "Unknown message type:" msg)
         (assoc msg :message-type :unknown :valid? false)))))
 
+(s/fdef validate-message
+  :args (s/cat :msg ::specs/raw-message)
+  :ret ::specs/validated-message
+  ;; validation only adds keys, and an unknown type is never valid
+  :fn (fn [{{:keys [msg]} :args ret :ret}]
+        (and (= (dissoc msg :message-type :valid? :errors)
+                (dissoc ret :message-type :valid? :errors))
+             (or (not (:valid? ret)) (not= :unknown (:message-type ret))))))
+
 (defn parse-jsonl-line
   "Parse a single JSONL line and validate."
   [line line-number]
@@ -125,6 +152,14 @@
        :valid? false
        :error (.getMessage e)
        :raw-line line})))
+
+(s/fdef parse-jsonl-line
+  :args (s/cat :line (s/nilable ::specs/jsonl-line) :line-number pos-int?)
+  :ret (s/nilable ::specs/parsed-line)
+  :fn (fn [{{:keys [line line-number]} :args ret :ret}]
+        (if (str/blank? line)
+          (nil? ret)
+          (= line-number (:line-number ret)))))
 
 (defn parse-jsonl-file
   "Parse entire JSONL file with memory-efficient streaming."
@@ -146,6 +181,10 @@
 
       parsed-messages)))
 
+(s/fdef parse-jsonl-file
+  :args (s/cat :file-path ::specs/path)
+  :ret (s/coll-of ::specs/parsed-line))
+
 (defn parse-jsonl-stream
   "Parse JSONL data from input stream for real-time processing."
   [input-stream callback-fn]
@@ -157,20 +196,39 @@
             (callback-fn parsed)))
         (recur (inc line-number))))))
 
+(s/fdef parse-jsonl-stream
+  :args (s/cat :input-stream some? :callback-fn ifn?)
+  :ret nil?)
+
 (defn group-by-message-type
   "Group parsed messages by their type."
   [messages]
   (group-by :message-type (filter :valid? messages)))
+
+(s/fdef group-by-message-type
+  :args ::specs/messages-args
+  :ret (s/map-of (s/nilable ::specs/message-type) (s/coll-of ::specs/message :kind vector?))
+  :fn specs/groups-valid-messages?)
 
 (defn group-by-session
   "Group messages by session ID."
   [messages]
   (group-by :session-id (filter :valid? messages)))
 
+(s/fdef group-by-session
+  :args ::specs/messages-args
+  :ret (s/map-of (s/nilable string?) (s/coll-of ::specs/message :kind vector?))
+  :fn specs/groups-valid-messages?)
+
 (defn group-by-conversation
   "Group messages by conversation ID."
   [messages]
   (group-by :conversation-id (filter :valid? messages)))
+
+(s/fdef group-by-conversation
+  :args ::specs/messages-args
+  :ret (s/map-of (s/nilable string?) (s/coll-of ::specs/message :kind vector?))
+  :fn specs/groups-valid-messages?)
 
 (defn extract-tool-usage
   "Extract tool usage patterns from messages."
@@ -185,6 +243,11 @@
                :first-used (first (sort (map :timestamp usages)))
                :last-used (last (sort (map :timestamp usages)))}))))
 
+(s/fdef extract-tool-usage
+  :args ::specs/messages-args
+  :ret (s/coll-of ::specs/tool-usage)
+  :fn (specs/counts-tool-messages? :usage-count))
+
 (defn calculate-token-stats
   "Calculate token usage statistics."
   [messages]
@@ -198,6 +261,13 @@
      :min-tokens (if (seq token-counts) (apply min token-counts) 0)
      :message-count (count valid-messages)}))
 
+(s/fdef calculate-token-stats
+  :args ::specs/messages-args
+  :ret ::specs/token-stats
+  :fn (fn [{{:keys [messages]} :args ret :ret}]
+        (and (= (:message-count ret) (count (filter :valid? messages)))
+             (<= (:min-tokens ret) (:average-tokens ret) (:max-tokens ret)))))
+
 (defn calculate-cost-stats
   "Calculate cost statistics from messages."
   [messages]
@@ -208,6 +278,10 @@
                      0)
      :cost-by-session (group-by :session-id
                                 (filter :cost-usd (filter :valid? messages)))}))
+
+(s/fdef calculate-cost-stats
+  :args ::specs/messages-args
+  :ret ::specs/cost-stats)
 
 (comment
   ;; Example usage

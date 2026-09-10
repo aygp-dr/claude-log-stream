@@ -3,6 +3,8 @@
   (:require [clojure.core.async :as async :refer [>! <! go go-loop chan pipeline-async]]
             [clojure.tools.logging :as log]
             [claude-log-stream.parser :as parser]
+            [claude-log-stream.specs :as specs]
+            [clojure.spec.alpha :as s]
             [clj-time.core :as time]
             [clj-time.format :as time-format]
             [clj-time.coerce :as time-coerce])
@@ -17,6 +19,12 @@
           end (last (sort timestamps))]
       (when (and start end)
         (Duration/between start end)))))
+
+(s/fdef session-duration
+  :args (s/cat :session-messages ::specs/messages)
+  :ret (s/nilable ::specs/duration)
+  :fn (fn [{ret :ret}]
+        (or (nil? ret) (not (.isNegative ^Duration ret)))))
 
 (defn conversation-flow-analysis
   "Analyze conversation flow patterns within a session."
@@ -38,6 +46,13 @@
                                          (filter #(= (:message-type %) :tool-usage)
                                                  ordered-messages))))}))
 
+(s/fdef conversation-flow-analysis
+  :args (s/cat :session-messages ::specs/messages)
+  :ret ::specs/flow
+  :fn (fn [{{:keys [session-messages]} :args ret :ret}]
+        (and (= (:message-count ret) (count session-messages))
+             (<= (:unique-tools ret) (:message-count ret)))))
+
 (defn cluster-conversations
   "Cluster conversations by similarity in tool usage and patterns."
   [conversations]
@@ -51,6 +66,12 @@
                                    conversations)]
     ;; Simple clustering by tool usage similarity
     (group-by :tool-count conversation-features)))
+
+(s/fdef cluster-conversations
+  :args (s/cat :conversations (s/map-of (s/nilable string?) ::specs/messages))
+  :ret ::specs/clusters
+  :fn (fn [{{:keys [conversations]} :args ret :ret}]
+        (= (count conversations) (reduce + (map count (vals ret))))))
 
 (defn productivity-metrics
   "Calculate productivity metrics for sessions."
@@ -69,6 +90,12 @@
      :tool-usage-count tool-usages
      :total-interactions (+ user-messages assistant-responses)}))
 
+(s/fdef productivity-metrics
+  :args (s/cat :session-messages ::specs/messages)
+  :ret ::specs/productivity
+  :fn (fn [{{:keys [session-messages]} :args ret :ret}]
+        (<= (:total-interactions ret) (count session-messages))))
+
 (defn tool-effectiveness-analysis
   "Analyze tool effectiveness and usage patterns."
   [messages]
@@ -86,6 +113,11 @@
               :first-used (first (sort (map :timestamp usages)))
               :last-used (last (sort (map :timestamp usages)))}))
          tool-stats)))
+
+(s/fdef tool-effectiveness-analysis
+  :args ::specs/messages-args
+  :ret (s/coll-of ::specs/tool-effectiveness)
+  :fn (specs/counts-tool-messages? :total-usage))
 
 (defn cost-optimization-insights
   "Generate cost optimization recommendations."
@@ -119,6 +151,12 @@
                                                                      (count msgs))})
                                      cost-by-model)))}))
 
+(s/fdef cost-optimization-insights
+  :args ::specs/messages-args
+  :ret ::specs/cost-insights
+  :fn (fn [{ret :ret}]
+        (<= (count (:expensive-sessions ret)) 10)))
+
 (defn streaming-processor
   "Create a streaming processor for real-time analysis."
   [analysis-fn buffer-size]
@@ -138,6 +176,10 @@
     {:input input-chan
      :output output-chan}))
 
+(s/fdef streaming-processor
+  :args (s/cat :analysis-fn ifn? :buffer-size pos-int?)
+  :ret ::specs/processor)
+
 (defn real-time-analyzer
   "Set up real-time analysis pipeline."
   [analysis-functions]
@@ -145,6 +187,10 @@
                           [name (streaming-processor fn 100)])
                         analysis-functions)]
     (into {} processors)))
+
+(s/fdef real-time-analyzer
+  :args (s/cat :analysis-functions (s/map-of any? ifn?))
+  :ret (s/map-of any? ::specs/processor))
 
 (defn analyze-logs
   "Main analysis function that processes all log data."
@@ -193,6 +239,14 @@
                                                         (.toEpochMilli (:timestamp %))))
                                                      valid-messages))}}))
 
+(s/fdef analyze-logs
+  :args ::specs/messages-args
+  :ret ::specs/analysis
+  :fn (fn [{{:keys [messages]} :args ret :ret}]
+        (let [{:keys [total-messages valid-messages invalid-messages]} (:summary ret)]
+          (and (= total-messages (count messages))
+               (= total-messages (+ valid-messages invalid-messages))))))
+
 (defn print-summary
   "Print a formatted summary of the analysis results."
   [analysis]
@@ -233,3 +287,7 @@
       (printf "    %s: %d uses across %d sessions (%.1f%% success)\n"
               tool-name total-usage unique-sessions (* 100.0 success-rate)))
     (println)))
+
+(s/fdef print-summary
+  :args (s/cat :analysis ::specs/analysis)
+  :ret nil?)

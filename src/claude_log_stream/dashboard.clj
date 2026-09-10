@@ -1,9 +1,11 @@
 (ns claude-log-stream.dashboard
   "Interactive terminal dashboard for real-time Claude log analytics."
   (:require [clojure.core.async :as async :refer [go go-loop <! >! chan timeout]]
+            [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
-            [claude-log-stream.analyzer :as analyzer])
+            [claude-log-stream.analyzer :as analyzer]
+            [claude-log-stream.specs :as specs])
   (:import [java.time Instant Duration]
            [java.time.format DateTimeFormatter]))
 
@@ -14,9 +16,17 @@
   (print "\033[2J\033[H")
   (flush))
 
+(s/fdef clear-screen
+  :args (s/cat)
+  :ret nil?)
+
 (defn move-cursor [row col]
   (printf "\033[%d;%dH" row col)
   (flush))
+
+(s/fdef move-cursor
+  :args (s/cat :row nat-int? :col nat-int?)
+  :ret nil?)
 
 (defn colorize [text color]
   (let [colors {:red "\033[31m"
@@ -29,6 +39,12 @@
                 :bold "\033[1m"
                 :reset "\033[0m"}]
     (str (get colors color "") text (get colors :reset ""))))
+
+(s/fdef colorize
+  :args (s/cat :text (s/nilable string?) :color ::specs/color)
+  :ret string?
+  :fn (fn [{{:keys [text]} :args ret :ret}]
+        (str/includes? ret (str text))))
 
 (defn draw-box [title content width height]
   (let [title-len (count title)
@@ -46,16 +62,32 @@
                              padded-line) " │"))))
     (println border-bottom)))
 
+(s/fdef draw-box
+  :args (s/cat :title string? :content ::specs/panel-lines :width pos-int? :height nat-int?)
+  :ret nil?)
+
 (defn format-duration [duration]
   (when duration
     (let [minutes (.toMinutes duration)
           seconds (mod (.getSeconds duration) 60)]
       (format "%dm %ds" minutes seconds))))
 
+(s/fdef format-duration
+  :args (s/cat :duration (s/nilable ::specs/duration))
+  :ret (s/nilable string?)
+  :fn (fn [{{:keys [duration]} :args ret :ret}]
+        (= (nil? duration) (nil? ret))))
+
 (defn format-timestamp [instant]
   (when instant
     (.format (DateTimeFormatter/ofPattern "HH:mm:ss")
              (.atZone instant (java.time.ZoneId/systemDefault)))))
+
+(s/fdef format-timestamp
+  :args (s/cat :instant (s/nilable ::specs/instant))
+  :ret (s/nilable string?)
+  :fn (fn [{{:keys [instant]} :args ret :ret}]
+        (= (nil? instant) (nil? ret))))
 
 (defn format-number [n]
   (cond
@@ -63,6 +95,10 @@
     (< n 1000) (str n)
     (< n 1000000) (format "%.1fK" (/ n 1000.0))
     :else (format "%.1fM" (/ n 1000000.0))))
+
+(s/fdef format-number
+  :args (s/cat :n (s/nilable ::specs/number-like))
+  :ret string?)
 
 (defn render-summary-panel [analysis]
   (let [summary (:summary analysis)
@@ -81,6 +117,10 @@
      (when (> (:total-cost costs) 0)
        (format "Cost: $%.2f" (:total-cost costs)))]))
 
+(s/fdef render-summary-panel
+  :args (s/cat :analysis ::specs/analysis)
+  :ret ::specs/panel-lines)
+
 (defn render-tools-panel [analysis]
   (let [tools (take 8 (sort-by :total-usage > (get-in analysis [:tools :effectiveness])))]
     (cons (colorize "TOP TOOLS" :green)
@@ -93,6 +133,10 @@
                          (* 100.0 success-rate)))
                tools))))
 
+(s/fdef render-tools-panel
+  :args (s/cat :analysis ::specs/analysis)
+  :ret ::specs/panel-lines)
+
 (defn render-sessions-panel [analysis]
   (let [sessions (take 8 (sort-by :message-count > (:sessions analysis)))]
     (cons (colorize "ACTIVE SESSIONS" :yellow)
@@ -102,6 +146,10 @@
                          message-count
                          (format-duration duration)))
                sessions))))
+
+(s/fdef render-sessions-panel
+  :args (s/cat :analysis ::specs/analysis)
+  :ret ::specs/panel-lines)
 
 (defn render-real-time-stats [analysis last-update]
   [(colorize "REAL-TIME" :magenta)
@@ -113,6 +161,10 @@
    "• Session started"
    "• Tool usage spike"
    "• Cost threshold alert"])
+
+(s/fdef render-real-time-stats
+  :args (s/cat :analysis ::specs/analysis :last-update (s/nilable ::specs/instant))
+  :ret ::specs/panel-lines)
 
 (defn render-dashboard [analysis]
   (clear-screen)
@@ -160,6 +212,10 @@
   (println (str/join (repeat *dashboard-width* "═")))
   (println (colorize "Press 'q' to quit, 'r' to refresh" :cyan)))
 
+(s/fdef render-dashboard
+  :args (s/cat :analysis ::specs/analysis)
+  :ret nil?)
+
 (defn handle-input [input-chan stop-chan]
   (go-loop []
     (let [input (read-line)]
@@ -168,6 +224,10 @@
         "r" (>! input-chan :refresh)
         "h" (>! input-chan :help)
         (recur)))))
+
+(s/fdef handle-input
+  :args (s/cat :input-chan some? :stop-chan some?)
+  :ret some?)
 
 (defn launch [analysis]
   (log/info "Launching interactive dashboard")
@@ -208,3 +268,7 @@
         stop-chan :quit))
 
     (println "\nDashboard closed.")))
+
+(s/fdef launch
+  :args (s/cat :analysis ::specs/analysis)
+  :ret nil?)

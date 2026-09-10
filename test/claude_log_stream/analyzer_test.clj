@@ -1,7 +1,12 @@
 (ns claude-log-stream.analyzer-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [clojure.spec.test.alpha :as stest]
+            [clojure.test :refer [deftest is testing use-fixtures]]
             [claude-log-stream.analyzer :as analyzer])
   (:import [java.time Instant Duration]))
+
+;; Exercise every s/fdef :args spec while the unit tests run.
+(use-fixtures :once
+  (fn [f] (stest/instrument) (try (f) (finally (stest/unstrument)))))
 
 (def sample-session-messages
   [{:timestamp (Instant/parse "2024-01-15T10:30:00Z")

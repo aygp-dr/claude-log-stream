@@ -1,6 +1,11 @@
 (ns claude-log-stream.core-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [clojure.spec.test.alpha :as stest]
+            [clojure.test :refer [deftest is testing use-fixtures]]
             [claude-log-stream.core :as core]))
+
+;; Exercise every s/fdef :args spec while the unit tests run.
+(use-fixtures :once
+  (fn [f] (stest/instrument) (try (f) (finally (stest/unstrument)))))
 
 (deftest test-validate-args
   (testing "shows help when requested"
