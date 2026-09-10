@@ -11,7 +11,9 @@
            [java.io BufferedReader]))
 
 ;; Specs for Claude Code log message types
-(s/def ::timestamp string?)
+;; ISO-8601 in the raw JSONL; parse-jsonl-line validates after converting
+;; it to an Instant, so accept both.
+(s/def ::timestamp (s/or :instant inst? :iso-string string?))
 (s/def ::session-id string?)
 (s/def ::message-id string?)
 (s/def ::conversation-id string?)
